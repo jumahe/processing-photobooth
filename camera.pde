@@ -1,3 +1,4 @@
+import processing.io.*;
 import com.dhchoi.*;
 import gifAnimation.*;
 import controlP5.*;
@@ -43,6 +44,10 @@ ControlFont font;
 PFont font1,font2;
 Button shoot;
 
+// -- GPIO
+int button_pin = 17;
+int button_state = 0;
+
 // -- SETUP
 // -------------------------------------------------------------------
 void setup()
@@ -65,10 +70,14 @@ void setup()
     .setSize(400,100)
     .setColor( color(255,255,255) );
   
-  shoot = cp5.addButton("shoot")
-    .setLabel("COMMENCER")
-    .setSize(400,50)
-    .setPosition( (width - 400) / 2, height - 50 - 50);
+  if(btn_mode == false)
+  {
+    // -- Good to know: on click, the button will call the function with the same name (shoot)
+    shoot = cp5.addButton("shoot")
+      .setLabel("COMMENCER")
+      .setSize(400,50)
+      .setPosition( (width - 400) / 2, height - 50 - 50);
+  }
 
   String[] devices = GLCapture.list();
   println("--> Devices:");
@@ -108,6 +117,9 @@ void setup()
   px = int((width - cam.width) / 2);
   py = int((height - cam.height) / 2);
   
+  // -- init GPIO
+  if(btn_mode == true) GPIO.pinMode(button_pin, GPIO.INPUT);
+  
   // -- init the gif player timer
   gif_timer = CountdownTimerService.getNewCountdownTimer(this).configure(5000, 10000);
 }
@@ -120,6 +132,9 @@ void draw()
   
   // -- the top left title
   image(title,0,0);
+  
+  // -- check the button state
+  if(btn_mode == true) readButton();
   
   // -- check if GIF is playing
   if(playing_gif == true && lastGif != null)
@@ -205,6 +220,20 @@ void draw()
   
   // -- set the info label position
   info.setPosition(px,py + cam.height + 10);
+}
+
+// -- READ the BUTTON state
+// -------------------------------------------------------------------
+public void readButton()
+{
+  int current_state = 1;
+  if(GPIO.digitalRead(button_pin) == GPIO.LOW) current_state = 0;
+  
+  if(current_state != button_state)
+  {
+    button_state = current_state;
+    if(button_state == 1) shoot(1);
+  }
 }
 
 // -- SHOOT: launch the shooting sequence
