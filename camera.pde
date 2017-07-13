@@ -3,10 +3,17 @@ import gifAnimation.*;
 import controlP5.*;
 import gohai.glvideo.*;
 
+// -- config
+boolean btn_mode = false;
+
 // -- accessing camera
 GLCapture cam;
 String[] configs;
 int px,py;
+
+// -- export
+String EXPORT_PATH = "/home/pi/processing/camera/exports/";
+String base_filename = "";
 
 // -- creating a gif
 GifMaker gifExport;
@@ -221,14 +228,14 @@ public void shoot(int val)
     int mn = minute();
     int s = second();
     
+    // -- the base name for exports
+    base_filename = y + "0" + m + "" + d + "-" + h + mn + s;
+    
     img1 = new PImage(cam.width, cam.height);
     img2 = new PImage(cam.width, cam.height);
     img3 = new PImage(cam.width, cam.height);
     
-    //String filename = y + "0" + m + "" + d + "-" + h + mn + s + ".jpg";
-    String filename = y + "0" + m + "" + d + "-" + h + mn + s + ".gif";
-    last_filename = filename;
-    filename = "/home/pi/processing/camera/exports/" + filename;
+    String filename = EXPORT_PATH + "gifs/" + base_filename + ".gif";
     last_path = filename;
     
     //cam.save("/home/pi/processing/camera/exports/" + filename);
@@ -377,7 +384,15 @@ public void donePic3()
 // -------------------------------------------------------------------
 public void finalizeGif()
 {
+  // -- save the pictures
+  println("saving pictures...");
+  debug.setText("saving pictures...");
+  img1.save( EXPORT_PATH + "pictures/" + base_filename + "__001.png");
+  img2.save( EXPORT_PATH + "pictures/" + base_filename + "__002.png");
+  img3.save( EXPORT_PATH + "pictures/" + base_filename + "__003.png");
+  
   println("finalize GIF...");
+  debug.setText("finalizing GIF file...");
   println("+pic 1");
   img1.blend(overlay,0,0,overlay.width,overlay.height,0,0,img1.width,img1.height,BLEND);
   gifExport.addFrame(img1.pixels, cam.width, cam.height);
@@ -387,7 +402,7 @@ public void finalizeGif()
   println("+pic 3");
   img3.blend(overlay,0,0,overlay.width,overlay.height,0,0,img3.width,img3.height,BLEND);
   gifExport.addFrame(img3.pixels, cam.width, cam.height);
-  println("saving...");
+  println("saving gif...");
   gifExport.finish();
   println("done");
   
