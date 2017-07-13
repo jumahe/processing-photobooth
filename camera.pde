@@ -1,3 +1,5 @@
+import com.temboo.core.*;
+import java.util.Base64;
 import processing.io.*;
 import com.dhchoi.*;
 import gifAnimation.*;
@@ -5,7 +7,7 @@ import controlP5.*;
 import gohai.glvideo.*;
 
 // -- config
-boolean btn_mode = false;
+boolean btn_mode = true;
 
 // -- accessing camera
 GLCapture cam;
@@ -19,6 +21,7 @@ String base_filename = "";
 // -- creating a gif
 GifMaker gifExport;
 PImage img1,img2,img3;
+String gif_b64,img1_b64,img2_b64,img3_b64;
 boolean req1,req2,req3 = false;
 
 // -- playing GIF
@@ -46,13 +49,15 @@ Button shoot;
 
 // -- GPIO
 int button_pin = 17;
-int button_state = 0;
+int button_state = 1;
 
 // -- SETUP
 // -------------------------------------------------------------------
 void setup()
 {
-  fullScreen(P2D);
+  //fullScreen(P2D);
+  size(1024,900,P2D);
+  if(btn_mode == true) noCursor();
   
   // -- init UI
   cp5 = new ControlP5(this);
@@ -231,8 +236,13 @@ public void readButton()
   
   if(current_state != button_state)
   {
+    println("button state changed");
     button_state = current_state;
-    if(button_state == 1) shoot(1);
+    if(button_state == 1)
+    {
+      println("button state back to 1: triggering a photo shoot sequence");
+      shoot(1);
+    }
   }
 }
 
@@ -248,7 +258,7 @@ public void shoot(int val)
   {
     ongoing = true;
     
-    shoot.setVisible(false);
+    if(btn_mode == false) shoot.setVisible(false);
     
     int y = year();
     int m = month();
@@ -368,7 +378,7 @@ public void onFinishEvent(CountdownTimer t)
     playing_gif = false;
     lastGif.stop();
     debug.setText("ready");
-    shoot.setVisible(true);
+    if(btn_mode == false) shoot.setVisible(true);
   }
 }
 
@@ -420,6 +430,10 @@ public void finalizeGif()
   img2.save( EXPORT_PATH + "pictures/" + base_filename + "__002.png");
   img3.save( EXPORT_PATH + "pictures/" + base_filename + "__003.png");
   
+  // -- encoding to B64
+  //img1_b64 = Base64.getUrlEncoder().encodeToString( img1 );
+  
+  // -- exporting the GIF
   println("finalize GIF...");
   debug.setText("finalizing GIF file...");
   println("+pic 1");
@@ -448,7 +462,7 @@ public void finalizeGif()
 // -------------------------------------------------------------------
 public void launchLastGif()
 {
-  shoot.setVisible(false);
+  if(btn_mode == false) shoot.setVisible(false);
   
   lastGif = new Gif(this, last_path);
   lastGif.play();
