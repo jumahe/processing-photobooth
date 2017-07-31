@@ -55,8 +55,8 @@ int button_state = 1;
 // -------------------------------------------------------------------
 void setup()
 {
-  //fullScreen(P2D);
-  size(1024,900,P2D);
+  fullScreen(P2D);
+  //size(1024,900,P2D);
   if(btn_mode == true) noCursor();
   
   // -- init UI
