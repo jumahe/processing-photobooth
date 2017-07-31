@@ -1,13 +1,13 @@
-import com.temboo.core.*;
 import java.util.Base64;
 import processing.io.*;
 import com.dhchoi.*;
 import gifAnimation.*;
 import controlP5.*;
 import gohai.glvideo.*;
+import http.requests.*;
 
 // -- config
-boolean btn_mode = true;
+boolean btn_mode = true; // if TRUE, we are using a physical button to trigger the sequence
 
 // -- accessing camera
 GLCapture cam;
@@ -17,6 +17,10 @@ int px,py;
 // -- export
 String EXPORT_PATH = "/home/pi/processing/camera/exports/";
 String base_filename = "";
+
+// -- upload to server
+boolean upload_to_server = true;
+String UPLOAD_URL = "http://www.destination-url.io/upload";
 
 // -- creating a gif
 GifMaker gifExport;
@@ -379,6 +383,8 @@ public void onFinishEvent(CountdownTimer t)
     lastGif.stop();
     debug.setText("ready");
     if(btn_mode == false) shoot.setVisible(true);
+    
+    cleanLastGif();
   }
 }
 
@@ -453,7 +459,19 @@ public void finalizeGif()
   ongoing = false;
   debug.setText("completed");
   
-  delay(1000);
+  // -- trying to send to server
+  delay(500);
+  try
+  {
+    sendToServer(base_filename + ".gif");
+  }
+  catch(RuntimeException e)
+  {
+    e.printStackTrace();
+  }
+  
+  // -- displaying the last generated GIF
+  delay(500);
   debug.setText("now playing GIF preview");
   launchLastGif();
 }
@@ -470,4 +488,30 @@ public void launchLastGif()
   playing_gif = true;
   
   gif_timer.start();
+}
+
+// -- CLEAN THE LAST GIF
+// -------------------------------------------------------------------
+public void cleanLastGif()
+{
+  if(lastGif != null)
+  {
+    lastGif.dispose();
+    lastGif = null;
+    delay(500);
+    System.gc();
+  }
+}
+
+// -- SEND TO SERVER
+// -------------------------------------------------------------------
+public void sendToServer(String filename)
+{
+  PostRequest post = new PostRequest(UPLOAD_URL);
+  //post.addData("tokken", "");
+  post.addFile("uploadFile", EXPORT_PATH + "gifs/" + filename); // or pictures/
+  post.send();
+  
+  println("Reponse Content: " + post.getContent());
+  println("Reponse Content-Length Header: " + post.getHeader("Content-Length"));
 }
