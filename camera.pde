@@ -20,7 +20,7 @@ String base_filename = "";
 
 // -- upload to server
 boolean upload_to_server = true;
-String UPLOAD_URL = "http://www.destination-url.io/upload";
+String UPLOAD_URL = "http://www.upload.to/photobooth/upload";
 
 // -- create a collage
 boolean create_a_collage = true;
@@ -489,6 +489,12 @@ public void takePic4()
 
 public void donePic4()
 {
+  // -- create and save the collage
+  if(create_a_collage == true)
+  {
+    createCollage();
+  }
+  
   t5.start();
 }
 
@@ -503,12 +509,6 @@ public void finalizeGif()
   img2.save( EXPORT_PATH + "pictures/" + base_filename + "__002.png");
   img3.save( EXPORT_PATH + "pictures/" + base_filename + "__003.png");
   img4.save( EXPORT_PATH + "pictures/" + base_filename + "__004.png");
-  
-  // -- create and export the collage
-  if(create_a_collage == true)
-  {
-    createCollage(img1,img2,img3,img4);
-  }
   
   // -- exporting the GIF
   println("finalize GIF...");
@@ -580,26 +580,28 @@ public void cleanLastGif()
 
 // -- SEND TO SERVER
 // -------------------------------------------------------------------
-public void sendToServer(String filename)
+public void sendToServer()
 {
   println("sending to server...");
-  debug.setText("sending GIF to server");
+  debug.setText("sending to server");
   
   PostRequest post = new PostRequest(UPLOAD_URL);
   //post.addData("tokken", "");
-  post.addFile("uploadFile", EXPORT_PATH + "gifs/" + filename); // or pictures/
+  //post.addFile("uploadFile", EXPORT_PATH + "gifs/" + base_filename + ".gif");
+  post.addFile("uploadFile", EXPORT_PATH + "collages/" + base_filename + ".png");
   post.send();
   
   println("Reponse Content: " + post.getContent());
   println("Reponse Content-Length Header: " + post.getHeader("Content-Length"));
 }
 
-// -- THREAD
+// -- execute the sendToServer function into a new THREAD
+// -------------------------------------------------------------------
 void serverRequestThread()
 {
   try
   {
-    sendToServer(base_filename + ".gif");
+    sendToServer();
   }
   catch(RuntimeException e)
   {
@@ -609,27 +611,7 @@ void serverRequestThread()
 
 // -- CREATE A COLLAGE
 // -------------------------------------------------------------------
-public void createCollage(PImage i1, PImage i2, PImage i3, PImage i4)
+public void createCollage()
 {
-  //println("creating the collage...");
-  //debug.setText("creating the collage");
-  
-  //int dest_h = 590;
-  //int dest_w = int((i1.width * dest_h) / i1.height);
-  
-  //PGraphics collage = createGraphics(1772,1181,P2D);
-  //collage.beginDraw();
-  //collage.background(255);
-  //collage.image(i1, 0, 0, dest_w, dest_h);
-  //collage.image(i2, dest_w + 1, 0, dest_w, dest_h);
-  //collage.image(i3, 0, dest_h + 1, dest_w, dest_h);
-  //collage.image(i4, dest_w + 1, dest_h + 1, dest_w, dest_h);
-  //collage.endDraw();
-  
-  //collage.save(EXPORT_PATH + "collages/" + base_filename + ".png");
-  
-  //println("collage done");
-  //debug.setText("collage done");
-  
   do_collage = true;
 }
