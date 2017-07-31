@@ -24,6 +24,7 @@ String UPLOAD_URL = "http://www.destination-url.io/upload";
 
 // -- create a collage
 boolean create_a_collage = true;
+boolean do_collage = false;
 
 // -- creating a gif
 GifMaker gifExport;
@@ -61,8 +62,8 @@ int button_state = 1;
 // -------------------------------------------------------------------
 void setup()
 {
-  if(debug_mode == true) size(1024,900,P2D);
-  else fullScreen(P2D);
+  size(1024,900,P2D);
+  //fullScreen(P2D);
   
   if(btn_mode == true) noCursor();
   
@@ -148,6 +149,32 @@ void draw()
   
   // -- check the button state
   if(btn_mode == true) readButton();
+  
+  // -- create and export a collage (need to be inside the draw function)
+  if(do_collage == true)
+  {
+    println("creating the collage...");
+    debug.setText("creating the collage");
+    
+    int dest_h = 590;
+    int dest_w = int((img1.width * dest_h) / img1.height);
+    
+    PGraphics collage = createGraphics(1772,1181,P2D);
+    collage.beginDraw();
+    collage.background(255);
+    collage.image(img1, 0, 0, dest_w, dest_h);
+    collage.image(img2, dest_w + 1, 0, dest_w, dest_h);
+    collage.image(img3, 0, dest_h + 1, dest_w, dest_h);
+    collage.image(img4, dest_w + 1, dest_h + 1, dest_w, dest_h);
+    collage.endDraw();
+    
+    collage.save(EXPORT_PATH + "collages/" + base_filename + ".png");
+    
+    println("collage done");
+    debug.setText("collage done");
+    
+    do_collage = false;
+  }
   
   // -- check if GIF is playing
   if(playing_gif == true && lastGif != null)
@@ -332,7 +359,7 @@ public void onTickEvent(CountdownTimer t, long timeLeftUntilFinish)
 {
   println("tick " + t.getId() + " : " + timeLeftUntilFinish);
   
-  if(step != "stand" && step != "warn" && step != "process" && t.getId() != t4.getId() && t.getId() != gif_timer.getId())
+  if(step != "stand" && step != "warn" && step != "process" && t.getId() != t5.getId() && t.getId() != gif_timer.getId())
   {
     println("cpt: " + cpt);
     
@@ -515,14 +542,7 @@ public void finalizeGif()
   delay(500);
   if(upload_to_server == true)
   {
-    try
-    {
-      sendToServer(base_filename + ".gif");
-    }
-    catch(RuntimeException e)
-    {
-      e.printStackTrace();
-    }
+    thread("serverRequestThread");
   }
   
   // -- displaying the last generated GIF
@@ -574,27 +594,42 @@ public void sendToServer(String filename)
   println("Reponse Content-Length Header: " + post.getHeader("Content-Length"));
 }
 
+// -- THREAD
+void serverRequestThread()
+{
+  try
+  {
+    sendToServer(base_filename + ".gif");
+  }
+  catch(RuntimeException e)
+  {
+    e.printStackTrace();
+  }
+}
+
 // -- CREATE A COLLAGE
 // -------------------------------------------------------------------
 public void createCollage(PImage i1, PImage i2, PImage i3, PImage i4)
 {
-  println("creating the collage...");
-  debug.setText("creating the collage");
+  //println("creating the collage...");
+  //debug.setText("creating the collage");
   
-  int dest_h = 590;
-  int dest_w = int((i1.width * dest_h) / i1.height);
+  //int dest_h = 590;
+  //int dest_w = int((i1.width * dest_h) / i1.height);
   
-  PGraphics collage = createGraphics(1772,1181,P2D);
-  collage.beginDraw();
-  collage.background(255);
-  collage.image(i1, 0, 0, dest_w, dest_h);
-  collage.image(i2, dest_w + 1, 0, dest_w, dest_h);
-  collage.image(i3, 0, dest_h + 1, dest_w, dest_h);
-  collage.image(i4, dest_w + 1, dest_h + 1, dest_w, dest_h);
-  collage.endDraw();
+  //PGraphics collage = createGraphics(1772,1181,P2D);
+  //collage.beginDraw();
+  //collage.background(255);
+  //collage.image(i1, 0, 0, dest_w, dest_h);
+  //collage.image(i2, dest_w + 1, 0, dest_w, dest_h);
+  //collage.image(i3, 0, dest_h + 1, dest_w, dest_h);
+  //collage.image(i4, dest_w + 1, dest_h + 1, dest_w, dest_h);
+  //collage.endDraw();
   
-  collage.save(EXPORT_PATH + "collages/" + base_filename + ".png");
+  //collage.save(EXPORT_PATH + "collages/" + base_filename + ".png");
   
-  println("collage done");
-  debug.setText("collage done");
+  //println("collage done");
+  //debug.setText("collage done");
+  
+  do_collage = true;
 }
