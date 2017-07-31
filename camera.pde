@@ -8,6 +8,7 @@ import http.requests.*;
 
 // -- config
 boolean btn_mode = true; // if TRUE, we are using a physical button to trigger the sequence
+boolean debug_mode = false;
 
 // -- accessing camera
 GLCapture cam;
@@ -24,9 +25,8 @@ String UPLOAD_URL = "http://www.destination-url.io/upload";
 
 // -- creating a gif
 GifMaker gifExport;
-PImage img1,img2,img3;
-String gif_b64,img1_b64,img2_b64,img3_b64;
-boolean req1,req2,req3 = false;
+PImage img1,img2,img3,img4;
+boolean req1,req2,req3,req4 = false;
 
 // -- playing GIF
 boolean playing_gif = false;
@@ -40,7 +40,7 @@ PImage title,overlay,warning,traitement,cd04,cd03,cd02,cd01,cd00;
 String step = "stand"; // "stand","warn","4","3","2","1","click","process"
 
 // -- timers for sequencing
-CountdownTimer warn_t,t1,t2,t3,t4;
+CountdownTimer warn_t,t1,t2,t3,t4,t5;
 boolean ongoing = false;
 int cpt = 0;
 
@@ -59,8 +59,9 @@ int button_state = 1;
 // -------------------------------------------------------------------
 void setup()
 {
-  fullScreen(P2D);
-  //size(1024,900,P2D);
+  if(debug_mode == true) size(1024,900,P2D);
+  else fullScreen(P2D);
+  
   if(btn_mode == true) noCursor();
   
   // -- init UI
@@ -121,8 +122,9 @@ void setup()
   img1 = new PImage(cam.width, cam.height);
   img2 = new PImage(cam.width, cam.height);
   img3 = new PImage(cam.width, cam.height);
+  img4 = new PImage(cam.width, cam.height);
   
-  // -- position of the central area
+  // -- the cam display position
   px = int((width - cam.width) / 2);
   py = int((height - cam.height) / 2);
   
@@ -221,6 +223,15 @@ void draw()
       req3 = false;
       donePic3();
     }
+    
+    // -- request the fourth one
+    if(req4 == true)
+    {
+      cam.loadPixels();
+      arrayCopy(cam.pixels, img4.pixels);
+      req4 = false;
+      donePic4();
+    }
   }
   
   // -- update the center area position
@@ -277,6 +288,7 @@ public void shoot(int val)
     img1 = new PImage(cam.width, cam.height);
     img2 = new PImage(cam.width, cam.height);
     img3 = new PImage(cam.width, cam.height);
+    img4 = new PImage(cam.width, cam.height);
     
     String filename = EXPORT_PATH + "gifs/" + base_filename + ".gif";
     last_path = filename;
@@ -296,7 +308,8 @@ public void shoot(int val)
     t1 = CountdownTimerService.getNewCountdownTimer(this).configure(1000, 5000);
     t2 = CountdownTimerService.getNewCountdownTimer(this).configure(1000, 5000);
     t3 = CountdownTimerService.getNewCountdownTimer(this).configure(1000, 5000);
-    t4 = CountdownTimerService.getNewCountdownTimer(this).configure(1000, 2000);
+    t4 = CountdownTimerService.getNewCountdownTimer(this).configure(1000, 5000);
+    t5 = CountdownTimerService.getNewCountdownTimer(this).configure(1000, 2000);
     
     debug.setText("get ready...");
     
@@ -368,8 +381,14 @@ public void onFinishEvent(CountdownTimer t)
     takePic3();
   }
   
-  // -- end of the pre-processing pause: finalize the GIF
+  // -- end of the fourth countdown: take the fourth picture
   if(t.getId() == t4.getId())
+  {
+    takePic4();
+  }
+  
+  // -- end of the pre-processing pause: finalize the GIF
+  if(t.getId() == t5.getId())
   {
     debug.setText("creating GIF file");
     step = "process";
@@ -422,7 +441,20 @@ public void takePic3()
 
 public void donePic3()
 {
+  delay(1000);
+  debug.setText("picture 4");
   t4.start();
+}
+
+public void takePic4()
+{
+  step = "click";
+  req4 = true;
+}
+
+public void donePic4()
+{
+  t5.start();
 }
 
 // -- FINALIZING GIF
@@ -435,6 +467,7 @@ public void finalizeGif()
   img1.save( EXPORT_PATH + "pictures/" + base_filename + "__001.png");
   img2.save( EXPORT_PATH + "pictures/" + base_filename + "__002.png");
   img3.save( EXPORT_PATH + "pictures/" + base_filename + "__003.png");
+  img4.save( EXPORT_PATH + "pictures/" + base_filename + "__004.png");
   
   // -- encoding to B64
   //img1_b64 = Base64.getUrlEncoder().encodeToString( img1 );
@@ -442,15 +475,23 @@ public void finalizeGif()
   // -- exporting the GIF
   println("finalize GIF...");
   debug.setText("finalizing GIF file...");
+  ///
   println("+pic 1");
   img1.blend(overlay,0,0,overlay.width,overlay.height,0,0,img1.width,img1.height,BLEND);
   gifExport.addFrame(img1.pixels, cam.width, cam.height);
+  ///
   println("+pic 2");
   img2.blend(overlay,0,0,overlay.width,overlay.height,0,0,img2.width,img2.height,BLEND);
   gifExport.addFrame(img2.pixels, cam.width, cam.height);
+  ///
   println("+pic 3");
   img3.blend(overlay,0,0,overlay.width,overlay.height,0,0,img3.width,img3.height,BLEND);
   gifExport.addFrame(img3.pixels, cam.width, cam.height);
+  ///
+  println("+pic 4");
+  img4.blend(overlay,0,0,overlay.width,overlay.height,0,0,img4.width,img4.height,BLEND);
+  gifExport.addFrame(img4.pixels, cam.width, cam.height);
+  ///
   println("saving gif...");
   gifExport.finish();
   println("done");
@@ -461,13 +502,16 @@ public void finalizeGif()
   
   // -- trying to send to server
   delay(500);
-  try
+  if(upload_to_server == true)
   {
-    sendToServer(base_filename + ".gif");
-  }
-  catch(RuntimeException e)
-  {
-    e.printStackTrace();
+    try
+    {
+      sendToServer(base_filename + ".gif");
+    }
+    catch(RuntimeException e)
+    {
+      e.printStackTrace();
+    }
   }
   
   // -- displaying the last generated GIF
