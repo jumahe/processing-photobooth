@@ -174,6 +174,7 @@ void draw()
     debug.setText("collage done");
     
     do_collage = false;
+    doneCollage();
   }
   
   // -- check if GIF is playing
@@ -494,7 +495,14 @@ public void donePic4()
   {
     createCollage();
   }
-  
+  else
+  {
+    doneCollage();
+  }
+}
+
+public void doneCollage()
+{
   t5.start();
 }
 
