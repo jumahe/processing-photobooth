@@ -1,4 +1,3 @@
-import java.util.Base64;
 import processing.io.*;
 import com.dhchoi.*;
 import gifAnimation.*;
