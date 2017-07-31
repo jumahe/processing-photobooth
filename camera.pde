@@ -23,6 +23,9 @@ String base_filename = "";
 boolean upload_to_server = true;
 String UPLOAD_URL = "http://www.destination-url.io/upload";
 
+// -- create a collage
+boolean create_a_collage = true;
+
 // -- creating a gif
 GifMaker gifExport;
 PImage img1,img2,img3,img4;
@@ -265,6 +268,8 @@ public void readButton()
 // -------------------------------------------------------------------
 public void shoot(int val)
 {
+  println("shoot requested: " + val);
+  
   if(ongoing == true || playing_gif == true)
   {
     println("process déjà en cours");
@@ -282,8 +287,14 @@ public void shoot(int val)
     int mn = minute();
     int s = second();
     
-    // -- the base name for exports
-    base_filename = y + "0" + m + "" + d + "-" + h + mn + s;
+    String month_str = (m < 10) ? ("0" + m) : ("" + m);
+    String day_str = (d < 10) ? ("0" + d) : ("" + d);
+    String hour_str = (h < 10) ? ("0" + h) : ("" + h);
+    String minute_str = (mn < 10) ? ("0" + mn) : ("" + mn);
+    String second_str = (s < 10) ? ("0" + s) : ("" + s);
+    
+    // -- the base name for exports: YYMMDD-hhmmss
+    base_filename = y + month_str + day_str + "-" + hour_str + minute_str + second_str;
     
     img1 = new PImage(cam.width, cam.height);
     img2 = new PImage(cam.width, cam.height);
@@ -292,8 +303,6 @@ public void shoot(int val)
     
     String filename = EXPORT_PATH + "gifs/" + base_filename + ".gif";
     last_path = filename;
-    
-    //cam.save("/home/pi/processing/camera/exports/" + filename);
     
     gifExport = new GifMaker(this, filename);
     gifExport.setRepeat(0);
@@ -469,8 +478,11 @@ public void finalizeGif()
   img3.save( EXPORT_PATH + "pictures/" + base_filename + "__003.png");
   img4.save( EXPORT_PATH + "pictures/" + base_filename + "__004.png");
   
-  // -- encoding to B64
-  //img1_b64 = Base64.getUrlEncoder().encodeToString( img1 );
+  // -- create and export the collage
+  if(create_a_collage == true)
+  {
+    createCollage(img1,img2,img3,img4);
+  }
   
   // -- exporting the GIF
   println("finalize GIF...");
@@ -494,11 +506,11 @@ public void finalizeGif()
   ///
   println("saving gif...");
   gifExport.finish();
-  println("done");
+  println("done saving gif");
   
   step = "stand";
   ongoing = false;
-  debug.setText("completed");
+  debug.setText("GIF completed");
   
   // -- trying to send to server
   delay(500);
@@ -551,6 +563,9 @@ public void cleanLastGif()
 // -------------------------------------------------------------------
 public void sendToServer(String filename)
 {
+  println("sending to server...");
+  debug.setText("sending GIF to server");
+  
   PostRequest post = new PostRequest(UPLOAD_URL);
   //post.addData("tokken", "");
   post.addFile("uploadFile", EXPORT_PATH + "gifs/" + filename); // or pictures/
@@ -558,4 +573,29 @@ public void sendToServer(String filename)
   
   println("Reponse Content: " + post.getContent());
   println("Reponse Content-Length Header: " + post.getHeader("Content-Length"));
+}
+
+// -- CREATE A COLLAGE
+// -------------------------------------------------------------------
+public void createCollage(PImage i1, PImage i2, PImage i3, PImage i4)
+{
+  println("creating the collage...");
+  debug.setText("creating the collage");
+  
+  int dest_h = 590;
+  int dest_w = int((i1.width * dest_h) / i1.height);
+  
+  PGraphics collage = createGraphics(1772,1181,P2D);
+  collage.beginDraw();
+  collage.background(255);
+  collage.image(i1, 0, 0, dest_w, dest_h);
+  collage.image(i2, dest_w + 1, 0, dest_w, dest_h);
+  collage.image(i3, 0, dest_h + 1, dest_w, dest_h);
+  collage.image(i4, dest_w + 1, dest_h + 1, dest_w, dest_h);
+  collage.endDraw();
+  
+  collage.save(EXPORT_PATH + "collages/" + base_filename + ".png");
+  
+  println("collage done");
+  debug.setText("collage done");
 }
