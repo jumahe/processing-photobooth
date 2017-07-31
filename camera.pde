@@ -39,7 +39,7 @@ Gif lastGif;
 CountdownTimer gif_timer;
 
 // -- UI & steps
-PImage title,overlay,warning,traitement,cd04,cd03,cd02,cd01,cd00;
+PImage title,overlay,warning,traitement,cd04,cd03,cd02,cd01,cd00,base_collage;
 String step = "stand"; // "stand","warn","4","3","2","1","click","process"
 
 // -- timers for sequencing
@@ -120,6 +120,7 @@ void setup()
   cd02 = loadImage("assets/cd02.png");
   cd01 = loadImage("assets/cd01.png");
   cd00 = loadImage("assets/cd00.png");
+  base_collage = loadImage("assets/base_collage.png");
   
   // -- init the storage images
   img1 = new PImage(cam.width, cam.height);
@@ -162,6 +163,7 @@ void draw()
     PGraphics collage = createGraphics(1772,1181,P2D);
     collage.beginDraw();
     collage.background(255);
+    collage.image(base_collage, 0, 0);
     collage.image(img1, 0, 0, dest_w, dest_h);
     collage.image(img2, dest_w + 1, 0, dest_w, dest_h);
     collage.image(img3, 0, dest_h + 1, dest_w, dest_h);
@@ -595,8 +597,8 @@ public void sendToServer()
   
   PostRequest post = new PostRequest(UPLOAD_URL);
   //post.addData("tokken", "");
-  //post.addFile("uploadFile", EXPORT_PATH + "gifs/" + base_filename + ".gif");
-  post.addFile("uploadFile", EXPORT_PATH + "collages/" + base_filename + ".png");
+  post.addFile("uploadFile", EXPORT_PATH + "gifs/" + base_filename + ".gif");
+  //post.addFile("uploadFile", EXPORT_PATH + "collages/" + base_filename + ".png");
   post.send();
   
   println("Reponse Content: " + post.getContent());
