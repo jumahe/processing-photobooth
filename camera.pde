@@ -12,6 +12,8 @@ boolean debug_mode = false;
 
 // -- accessing camera
 GLCapture cam;
+int cam_width = 960;
+int cam_height = 720;
 String[] configs;
 int px,py;
 
@@ -146,17 +148,12 @@ void setup()
   cd00 = loadImage("assets/cd00.png");
   base_collage = loadImage("assets/base_collage.png");
   
-  println(cam.width + "x" + cam.height);
-  
-  // -- init the storage images
-  img1 = new PImage(cam.width, cam.height);
-  img2 = new PImage(cam.width, cam.height);
-  img3 = new PImage(cam.width, cam.height);
-  img4 = new PImage(cam.width, cam.height);
+  cam_width = (cam.width == 0) ? cam_width : cam.width;
+  cam_height = (cam.height == 0) ? cam_height : cam.height;
   
   // -- calculating gif height
-  if(gif_width == 0) gif_width = cam.width;
-  gif_height = int((cam.height * gif_width) / cam.width);
+  if(gif_width == 0) gif_width = cam_width;
+  gif_height = int((cam_height * gif_width) / cam_width);
   
   // -- init GPIO (for the physical button)
   if(btn_mode == true) GPIO.pinMode(button_pin, GPIO.INPUT);
@@ -177,9 +174,12 @@ void draw()
   // -- check the button state
   if(btn_mode == true) readButton();
   
+  cam_width = (cam.width == 0) ? cam_width : cam.width;
+  cam_height = (cam.height == 0) ? cam_height : cam.height;
+  
   // -- update the center area position
-  px = int((width - cam.width) / 2);
-  py = int((height - cam.height) / 2);
+  px = int((width - cam_width) / 2);
+  py = int((height - cam_height) / 2);
   
   // -- check if GIF is playing
   if(playing_gif == true && lastGif != null)
@@ -196,7 +196,7 @@ void draw()
     // -- flip and display the cam monitor
     pushMatrix();
     scale(-1,1);
-    image(cam, 0 - cam.width - px, py); // flip for mirror effect
+    image(cam, 0 - cam_width - px, py); // flip for mirror effect
     popMatrix();
     
     // -- display overlay 
@@ -266,7 +266,7 @@ void draw()
   }
   
   // -- set the info label position
-  info.setPosition(px,py + cam.height + 10);
+  info.setPosition(px,py + cam_height + 10);
 }
 
 // -- READ the BUTTON state
@@ -314,6 +314,10 @@ public void shoot(int val)
     
     String filename = EXPORT_PATH + "gifs/" + base_filename + ".gif";
     last_path = filename;
+    
+    // -- calculating gif height
+    if(gif_width == 0) gif_width = cam.width;
+    gif_height = int((cam.height * gif_width) / cam.width);
     
     gifExport = new GifMaker(this, filename);
     gifExport.setRepeat(0);
