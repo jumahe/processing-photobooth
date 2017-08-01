@@ -1,0 +1,13 @@
+{
+  "local_export_path":"/home/pi/processing/camera/exports/",
+  "upload_service_url":"http://www.upload.to/photobooth/upload",
+  "upload_service_tokken":"",
+  "use_physical_button":1,
+  "upload_option":1,
+  "collage_option":1,
+  "save_individual":1,
+  "debug_mode":1,
+  "info_text":"",
+  "button_label":"COMMENCER",
+  "gif_width":400
+}

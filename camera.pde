@@ -6,7 +6,8 @@ import gohai.glvideo.*;
 import http.requests.*;
 
 // -- config
-boolean btn_mode = true; // if TRUE, we are using a physical button to trigger the sequence
+// --> ALL THE MAIN CONFIGS ARE STORED IN data/config.json
+boolean btn_mode = true; // true = using a physical button
 boolean debug_mode = false;
 
 // -- accessing camera
@@ -15,19 +16,26 @@ String[] configs;
 int px,py;
 
 // -- export
-String EXPORT_PATH = "/home/pi/processing/camera/exports/";
+String EXPORT_PATH = "";
 String base_filename = "";
 
 // -- upload to server
 boolean upload_to_server = true;
-String UPLOAD_URL = "http://www.upload.to/photobooth/upload";
+String UPLOAD_URL = "";
+String upload_tokken = "";
 
 // -- create a collage
 boolean create_a_collage = true;
 boolean do_collage = false;
+PImage col1,col2,col3,col4;
+
+// -- saving individual images
+boolean save_pictures = true;
 
 // -- creating a gif
 GifMaker gifExport;
+int gif_width = 400;
+int gif_height = 0; // to be calculated from the cam ratio
 PImage img1,img2,img3,img4;
 boolean req1,req2,req3,req4 = false;
 
@@ -49,10 +57,11 @@ int cpt = 0;
 
 // -- control UI
 ControlP5 cp5;
-Textlabel debug,counter,info;
-ControlFont font;
-PFont font1,font2;
+Textlabel debug,info;
+String info_text = "";
+PFont font1;
 Button shoot;
+String shoot_label = "START";
 
 // -- GPIO
 int button_pin = 17;
@@ -64,16 +73,31 @@ void setup()
 {
   size(1024,900,P2D);
   //fullScreen(P2D);
+  frameRate(60);
   
+  // -- JSON CONFIG FILE
+  JSONObject config = loadJSONObject("config.json");
+  EXPORT_PATH = config.getString("local_export_path");
+  UPLOAD_URL = config.getString("upload_service_url");
+  upload_tokken = config.getString("upload_service_tokken");
+  btn_mode = (config.getInt("use_physical_button") == 1) ? true : false;
+  upload_to_server = (config.getInt("upload_option") == 1) ? true : false;
+  create_a_collage = (config.getInt("collage_option") == 1) ? true : false;
+  save_pictures = (config.getInt("save_individual") == 1) ? true : false;
+  debug_mode = (config.getInt("debug_mode") == 1) ? true : false;
+  info_text = config.getString("info_text");
+  shoot_label = config.getString("button_label");
+  gif_width = config.getInt("gif_width");
+  
+  // -- if we use a physical button, we don't need to display the cursor
   if(btn_mode == true) noCursor();
   
   // -- init UI
   cp5 = new ControlP5(this);
   font1 = createFont("arial",20);
-  font2 = createFont("arial",100);
   
   info = cp5.addTextlabel("info")
-    .setText("information : les images seront disponibles apres la soiree.")
+    .setText(info_text)
     .setPosition(0,-10)
     .setColor( color(255,255,255) );
   
@@ -85,29 +109,30 @@ void setup()
   
   if(btn_mode == false)
   {
-    // -- Good to know: on click, the button will call the function with the same name (shoot)
     shoot = cp5.addButton("shoot")
-      .setLabel("COMMENCER")
+      .setLabel(shoot_label)
       .setSize(400,50)
       .setPosition( (width - 400) / 2, height - 50 - 50);
   }
-
+  
+  // -- looking for capture devices
   String[] devices = GLCapture.list();
-  println("--> Devices:");
+  println("__________ Devices:");
   printArray(devices);
   
   if (0 < devices.length)
   {
+    // -- getting the config modes of the first device
     configs = GLCapture.configs(devices[0]);
-    println("--> Configs:");
+    println("__________ Configs:");
     printArray(configs);
   }
 
   //cam = new GLCapture(this);
   //cam = new GLCapture(this, devices[5]);
   //cam = new GLCapture(this, devices[0], 640, 480, 25);
-  cam = new GLCapture(this, devices[0], configs[3]); // LOGITECH
-  //cam = new GLCapture(this, devices[0], configs[0]); // PS-EYE
+  cam = new GLCapture(this, devices[0], configs[3]); // LOGITECH CAM on my RPi 
+  //cam = new GLCapture(this, devices[0], configs[0]); // PS-EYE CAM on my RPi
   cam.start();
   
   // -- init the UI images
@@ -128,14 +153,14 @@ void setup()
   img3 = new PImage(cam.width, cam.height);
   img4 = new PImage(cam.width, cam.height);
   
-  // -- the cam display position
-  px = int((width - cam.width) / 2);
-  py = int((height - cam.height) / 2);
+  // -- calculating gif height
+  if(gif_width == 0) gif_width = cam.width;
+  gif_height = int((cam.height/cam.width)*gif_width);
   
-  // -- init GPIO
+  // -- init GPIO (for the physical button)
   if(btn_mode == true) GPIO.pinMode(button_pin, GPIO.INPUT);
   
-  // -- init the gif player timer
+  // -- init the gif player timer (10secs)
   gif_timer = CountdownTimerService.getNewCountdownTimer(this).configure(5000, 10000);
 }
 
@@ -151,54 +176,27 @@ void draw()
   // -- check the button state
   if(btn_mode == true) readButton();
   
-  // -- create and export a collage (need to be inside the draw function)
-  if(do_collage == true)
-  {
-    println("creating the collage...");
-    debug.setText("creating the collage");
-    
-    int dest_h = 590;
-    int dest_w = int((img1.width * dest_h) / img1.height);
-    
-    PGraphics collage = createGraphics(1772,1181,P2D);
-    collage.beginDraw();
-    collage.background(255);
-    collage.image(base_collage, 0, 0);
-    collage.image(img1, 0, 0, dest_w, dest_h);
-    collage.image(img2, dest_w + 1, 0, dest_w, dest_h);
-    collage.image(img3, 0, dest_h + 1, dest_w, dest_h);
-    collage.image(img4, dest_w + 1, dest_h + 1, dest_w, dest_h);
-    collage.endDraw();
-    
-    collage.save(EXPORT_PATH + "collages/" + base_filename + ".png");
-    
-    println("collage done");
-    debug.setText("collage done");
-    
-    do_collage = false;
-    doneCollage();
-  }
+  // -- update the center area position
+  px = int((width - cam.width) / 2);
+  py = int((height - cam.height) / 2);
   
   // -- check if GIF is playing
   if(playing_gif == true && lastGif != null)
   {
-    image(lastGif,px,py); // only display the animated GIF
+    int pgx = int((width - gif_width) / 2);
+    int pgy = int((height - gif_height) / 2);
+    image(lastGif,pgx,pgy); // only display the animated GIF
   }
   else
   {
     // -- get the cam view
-    if(cam.available() == true)
-    {
-      cam.read();
-    }
+    if(cam.available() == true) cam.read();
     
     // -- flip and display the cam monitor
     pushMatrix();
     scale(-1,1);
     image(cam, 0 - cam.width - px, py); // flip for mirror effect
     popMatrix();
-    
-    //image(overlay, px, py);
     
     // -- display overlay 
     switch(step)
@@ -266,10 +264,6 @@ void draw()
     }
   }
   
-  // -- update the center area position
-  px = int((width - cam.width) / 2);
-  py = int((height - cam.height) / 2);
-  
   // -- set the info label position
   info.setPosition(px,py + cam.height + 10);
 }
@@ -301,7 +295,7 @@ public void shoot(int val)
   
   if(ongoing == true || playing_gif == true)
   {
-    println("process déjà en cours");
+    println("***** process en cours *****");
   }
   else
   {
@@ -309,21 +303,8 @@ public void shoot(int val)
     
     if(btn_mode == false) shoot.setVisible(false);
     
-    int y = year();
-    int m = month();
-    int d = day();
-    int h = hour();
-    int mn = minute();
-    int s = second();
-    
-    String month_str = (m < 10) ? ("0" + m) : ("" + m);
-    String day_str = (d < 10) ? ("0" + d) : ("" + d);
-    String hour_str = (h < 10) ? ("0" + h) : ("" + h);
-    String minute_str = (mn < 10) ? ("0" + mn) : ("" + mn);
-    String second_str = (s < 10) ? ("0" + s) : ("" + s);
-    
     // -- the base name for exports: YYMMDD-hhmmss
-    base_filename = y + month_str + day_str + "-" + hour_str + minute_str + second_str;
+    base_filename = getBaseName();
     
     img1 = new PImage(cam.width, cam.height);
     img2 = new PImage(cam.width, cam.height);
@@ -335,19 +316,20 @@ public void shoot(int val)
     
     gifExport = new GifMaker(this, filename);
     gifExport.setRepeat(0);
-    gifExport.setSize(cam.width, cam.height);
+    gifExport.setSize(gif_width, gif_height);
     gifExport.setDelay(500);
     
     req1 = false;
     req2 = false;
     req3 = false;
+    req4 = false;
     
     warn_t = CountdownTimerService.getNewCountdownTimer(this).configure(1000, 5000);
     t1 = CountdownTimerService.getNewCountdownTimer(this).configure(1000, 5000);
     t2 = CountdownTimerService.getNewCountdownTimer(this).configure(1000, 5000);
     t3 = CountdownTimerService.getNewCountdownTimer(this).configure(1000, 5000);
     t4 = CountdownTimerService.getNewCountdownTimer(this).configure(1000, 5000);
-    t5 = CountdownTimerService.getNewCountdownTimer(this).configure(1000, 2000);
+    t5 = CountdownTimerService.getNewCountdownTimer(this).configure(1000, 1000);
     
     debug.setText("get ready...");
     
@@ -356,13 +338,37 @@ public void shoot(int val)
   }
 }
 
+// -- Format a base name (based on the datetime)
+// -------------------------------------------------------------------
+public String getBaseName()
+{
+  int y = year();
+  int m = month();
+  int d = day();
+  int h = hour();
+  int mn = minute();
+  int s = second();
+  
+  String month_str = (m < 10) ? ("0" + m) : ("" + m);
+  String day_str = (d < 10) ? ("0" + d) : ("" + d);
+  String hour_str = (h < 10) ? ("0" + h) : ("" + h);
+  String minute_str = (mn < 10) ? ("0" + mn) : ("" + mn);
+  String second_str = (s < 10) ? ("0" + s) : ("" + s);
+  
+  return (y + month_str + day_str + "-" + hour_str + minute_str + second_str);
+}
+
 // -- GLOBAL TICK EVENT
 // -------------------------------------------------------------------
 public void onTickEvent(CountdownTimer t, long timeLeftUntilFinish)
 {
   println("tick " + t.getId() + " : " + timeLeftUntilFinish);
   
-  if(step != "stand" && step != "warn" && step != "process" && t.getId() != t5.getId() && t.getId() != gif_timer.getId())
+  if(step != "stand" 
+  && step != "warn" 
+  && step != "process" 
+  && t.getId() != t5.getId() 
+  && t.getId() != gif_timer.getId())
   {
     println("cpt: " + cpt);
     
@@ -428,9 +434,9 @@ public void onFinishEvent(CountdownTimer t)
   // -- end of the pre-processing pause: finalize the GIF
   if(t.getId() == t5.getId())
   {
-    debug.setText("creating GIF file");
+    debug.setText("Processing and exporting...");
     step = "process";
-    finalizeGif();
+    process_and_export();
   }
   
   // -- end of the GIF preview
@@ -445,12 +451,16 @@ public void onFinishEvent(CountdownTimer t)
   }
 }
 
+// -- Request the first picture
+// -------------------------------------------------------------------
 public void takePic1()
 {
   step = "click";
   req1 = true;
 }
 
+// -- First picture ok
+// -------------------------------------------------------------------
 public void donePic1()
 {
   delay(1000);
@@ -458,12 +468,16 @@ public void donePic1()
   t2.start();
 }
 
+// -- Request the second picture
+// -------------------------------------------------------------------
 public void takePic2()
 {
   step = "click";
   req2 = true;
 }
 
+// -- Second picture ok
+// -------------------------------------------------------------------
 public void donePic2()
 {
   delay(1000);
@@ -471,12 +485,16 @@ public void donePic2()
   t3.start();
 }
 
+// -- Request the third picture
+// -------------------------------------------------------------------
 public void takePic3()
 {
   step = "click";
   req3 = true;
 }
 
+// -- Third picture ok
+// -------------------------------------------------------------------
 public void donePic3()
 {
   delay(1000);
@@ -484,63 +502,70 @@ public void donePic3()
   t4.start();
 }
 
+// -- Request the fourth picture
+// -------------------------------------------------------------------
 public void takePic4()
 {
   step = "click";
   req4 = true;
 }
 
+// -- Fourth picture ok
+// -------------------------------------------------------------------
 public void donePic4()
 {
-  // -- create and save the collage
-  if(create_a_collage == true)
-  {
-    createCollage();
-  }
-  else
-  {
-    doneCollage();
-  }
+  t5.start();
 }
 
-public void doneCollage()
+// -- PROCESS AND EXPORT
+// -------------------------------------------------------------------
+public void process_and_export()
 {
-  t5.start();
+  // -- save individual pictures
+  if(save_pictures == true)
+  {
+    thread("export_pictures");
+  }
+  
+  // -- make a collage
+  if(create_a_collage == true)
+  {
+    thread("createCollage");
+  }
+  
+  // -- and, of course...
+  finalizeGif();
 }
 
 // -- FINALIZING GIF
 // -------------------------------------------------------------------
 public void finalizeGif()
 {
-  // -- save the pictures
-  println("saving pictures...");
-  debug.setText("saving pictures...");
-  img1.save( EXPORT_PATH + "pictures/" + base_filename + "__001.png");
-  img2.save( EXPORT_PATH + "pictures/" + base_filename + "__002.png");
-  img3.save( EXPORT_PATH + "pictures/" + base_filename + "__003.png");
-  img4.save( EXPORT_PATH + "pictures/" + base_filename + "__004.png");
-  
   // -- exporting the GIF
   println("finalize GIF...");
   debug.setText("finalizing GIF file...");
   ///
-  println("+pic 1");
+  println("+pic1");
   img1.blend(overlay,0,0,overlay.width,overlay.height,0,0,img1.width,img1.height,BLEND);
-  gifExport.addFrame(img1.pixels, cam.width, cam.height);
+  img1.resize(gif_width,gif_height);
+  gifExport.addFrame(img1.pixels, gif_width, gif_height);
   ///
-  println("+pic 2");
+  println("+pic2");
   img2.blend(overlay,0,0,overlay.width,overlay.height,0,0,img2.width,img2.height,BLEND);
-  gifExport.addFrame(img2.pixels, cam.width, cam.height);
+  img2.resize(gif_width,gif_height);
+  gifExport.addFrame(img2.pixels, gif_width, gif_height);
   ///
-  println("+pic 3");
+  println("+pic3");
   img3.blend(overlay,0,0,overlay.width,overlay.height,0,0,img3.width,img3.height,BLEND);
-  gifExport.addFrame(img3.pixels, cam.width, cam.height);
+  img3.resize(gif_width,gif_height);
+  gifExport.addFrame(img3.pixels, gif_width, gif_height);
   ///
-  println("+pic 4");
+  println("+pic4");
   img4.blend(overlay,0,0,overlay.width,overlay.height,0,0,img4.width,img4.height,BLEND);
-  gifExport.addFrame(img4.pixels, cam.width, cam.height);
+  img4.resize(gif_width,gif_height);
+  gifExport.addFrame(img4.pixels, gif_width, gif_height);
   ///
-  println("saving gif...");
+  println("now saving gif...");
   gifExport.finish();
   println("done saving gif");
   
@@ -549,14 +574,12 @@ public void finalizeGif()
   debug.setText("GIF completed");
   
   // -- trying to send to server
-  delay(500);
   if(upload_to_server == true)
   {
-    thread("serverRequestThread");
+    thread("sendToServer");
   }
   
   // -- displaying the last generated GIF
-  delay(500);
   debug.setText("now playing GIF preview");
   launchLastGif();
 }
@@ -579,13 +602,21 @@ public void launchLastGif()
 // -------------------------------------------------------------------
 public void cleanLastGif()
 {
+  println("***cleanLastGif");
+  
+  img1 = null;
+  img2 = null;
+  img3 = null;
+  img4 = null;
+  
   if(lastGif != null)
   {
     lastGif.dispose();
     lastGif = null;
-    delay(500);
-    System.gc();
   }
+  
+  delay(500);
+  System.gc();
 }
 
 // -- SEND TO SERVER
@@ -593,35 +624,78 @@ public void cleanLastGif()
 public void sendToServer()
 {
   println("sending to server...");
-  debug.setText("sending to server");
+  debug.setText("sending to server.");
   
   PostRequest post = new PostRequest(UPLOAD_URL);
-  //post.addData("tokken", "");
+  post.addData("t", upload_tokken);
   post.addFile("uploadFile", EXPORT_PATH + "gifs/" + base_filename + ".gif");
   //post.addFile("uploadFile", EXPORT_PATH + "collages/" + base_filename + ".png");
   post.send();
   
-  println("Reponse Content: " + post.getContent());
-  println("Reponse Content-Length Header: " + post.getHeader("Content-Length"));
-}
-
-// -- execute the sendToServer function into a new THREAD
-// -------------------------------------------------------------------
-void serverRequestThread()
-{
-  try
-  {
-    sendToServer();
-  }
-  catch(RuntimeException e)
-  {
-    e.printStackTrace();
-  }
+  String response = post.getContent();
+  println("POST RESPONSE: " + response);
+  
+  post = null;
 }
 
 // -- CREATE A COLLAGE
 // -------------------------------------------------------------------
 public void createCollage()
 {
-  do_collage = true;
+  println("creating the collage...");
+  
+  // -- 1772x1181px for a 15x10cm 300dpi export
+  PImage base = new PImage(base_collage.width, base_collage.height);
+  PImage col1 = new PImage(img1.width, img1.height);
+  PImage col2 = new PImage(img2.width, img2.height);
+  PImage col3 = new PImage(img3.width, img3.height);
+  PImage col4 = new PImage(img4.width, img4.height);
+  
+  // -- duplicate sources
+  arrayCopy(base_collage.pixels, base.pixels);
+  arrayCopy(img1.pixels, col1.pixels);
+  arrayCopy(img2.pixels, col2.pixels);
+  arrayCopy(img3.pixels, col3.pixels);
+  arrayCopy(img4.pixels, col4.pixels);
+  
+  // -- set the destination size for the pictures
+  int dest_h = 590;
+  int dest_w = int((col1.width * dest_h) / col1.height);
+  
+  // -- resize the pictures
+  col1.resize(dest_w, dest_h);
+  col2.resize(dest_w, dest_h);
+  col3.resize(dest_w, dest_h);
+  col4.resize(dest_w, dest_h);
+  
+  // -- create the collage
+  base.set(0, 0, col1);
+  base.set(dest_w + 1, 0, col2);
+  base.set(0, dest_h + 1, col3);
+  base.set(dest_w + 1, dest_h + 1, col4);
+  
+  // -- save the collage
+  base.save(EXPORT_PATH + "collages/" + base_filename + ".jpg");
+  
+  println("collage done");
+  
+  // -- reset the clones
+  base = null;
+  col1 = null;
+  col2 = null;
+  col3 = null;
+  col4 = null;
+}
+
+// -- SAVE INDIVIDUAL PICTURES
+// -------------------------------------------------------------------
+public void export_pictures()
+{
+  println("saving pictures...");
+  debug.setText("saving pictures...");
+  img1.save( EXPORT_PATH + "pictures/" + base_filename + "__001.png");
+  img2.save( EXPORT_PATH + "pictures/" + base_filename + "__002.png");
+  img3.save( EXPORT_PATH + "pictures/" + base_filename + "__003.png");
+  img4.save( EXPORT_PATH + "pictures/" + base_filename + "__004.png");
+  println("saving pictures DONE");
 }
