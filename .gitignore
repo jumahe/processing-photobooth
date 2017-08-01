@@ -1,2 +1,3 @@
 # do not include exports
 /exports/*
+/data/config.json
