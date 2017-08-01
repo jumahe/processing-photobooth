@@ -73,7 +73,6 @@ void setup()
 {
   size(1024,900,P2D);
   //fullScreen(P2D);
-  frameRate(60);
   
   // -- JSON CONFIG FILE
   JSONObject config = loadJSONObject("config.json");
@@ -147,6 +146,8 @@ void setup()
   cd00 = loadImage("assets/cd00.png");
   base_collage = loadImage("assets/base_collage.png");
   
+  println(cam.width + "x" + cam.height);
+  
   // -- init the storage images
   img1 = new PImage(cam.width, cam.height);
   img2 = new PImage(cam.width, cam.height);
@@ -155,7 +156,7 @@ void setup()
   
   // -- calculating gif height
   if(gif_width == 0) gif_width = cam.width;
-  gif_height = int((cam.height/cam.width)*gif_width);
+  gif_height = int((cam.height * gif_width) / cam.width);
   
   // -- init GPIO (for the physical button)
   if(btn_mode == true) GPIO.pinMode(button_pin, GPIO.INPUT);
